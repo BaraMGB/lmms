@@ -29,8 +29,10 @@
 #include <QMdiArea>
 #include <QMoveEvent>
 #include <QResizeEvent>
+#include <QScrollBar>
 
 #include "embed.h"
+
 
 
 SubWindow::SubWindow( QWidget *parent, Qt::WindowFlags windowFlags ) :
@@ -121,6 +123,19 @@ void SubWindow::elideText( QLabel *label, QString text )
 
 
 
+bool SubWindow::isMaximizedOnMac()
+{
+	// check if subwindow size is identical to the MdiArea size, accounting for scrollbars
+	int hScrollBarHeight = mdiArea()->horizontalScrollBar()->isVisible() ? mdiArea()->horizontalScrollBar()->size().height() : 0;
+	int vScrollBarWidth = mdiArea()->verticalScrollBar()->isVisible() ? mdiArea()->verticalScrollBar()->size().width() : 0;
+	QSize areaSize( this->mdiArea()->size().width() - vScrollBarWidth, this->mdiArea()->size().height() - hScrollBarHeight );
+
+	return areaSize == this->size();
+}
+
+
+
+
 QRect SubWindow::getTrueNormalGeometry() const
 {
 	return m_trackedNormalGeom;
@@ -202,7 +217,7 @@ void SubWindow::resizeEvent( QResizeEvent * event )
 	const int buttonGap = 1;
 	const int menuButtonSpace = 24;
 
-	QPoint rightButtonPos( width() - rightSpace - m_buttonSize.width() , 3 );
+	QPoint rightButtonPos( width() - rightSpace - m_buttonSize.width(), 3 );
 	QPoint middleButtonPos( width() - rightSpace - ( 2 * m_buttonSize.width() ) - buttonGap, 3 );
 	QPoint leftButtonPos( width() - rightSpace - ( 3 * m_buttonSize.width() ) - ( 2 * buttonGap ), 3 );
 
@@ -220,13 +235,27 @@ void SubWindow::resizeEvent( QResizeEvent * event )
 	{
 		buttonBarWidth = buttonBarWidth + m_buttonSize.width() + buttonGap;
 		m_maximizeBtn->move( middleButtonPos );
+	// on Mac the isMaximize() function returns always false
+	// so we have to implement our own test
+#ifdef LMMS_BUILD_APPLE
+		if( isMaximizedOnMac() )
+		{
+			m_restoreBtn->move( middleButtonPos );
+			m_restoreBtn->show();
+		}
+		else
+		{
+			m_maximizeBtn->show();
+		}
+#else
 		m_maximizeBtn->show();
+#endif
 	}
 
 	if( windowFlags() & Qt::WindowMinimizeButtonHint )
 	{
 		buttonBarWidth = buttonBarWidth + m_buttonSize.width() + buttonGap;
-		if( m_maximizeBtn->isHidden() )
+		if( m_maximizeBtn->isHidden() && !isMaximizedOnMac() )
 		{
 			m_minimizeBtn->move( middleButtonPos );
 		}
@@ -234,8 +263,6 @@ void SubWindow::resizeEvent( QResizeEvent * event )
 		{
 			m_minimizeBtn->move( leftButtonPos );
 		}
-		m_minimizeBtn->show();
-		m_restoreBtn->hide();
 		if( isMinimized() )
 		{
 			if( m_maximizeBtn->isHidden() )
@@ -247,7 +274,10 @@ void SubWindow::resizeEvent( QResizeEvent * event )
 				m_restoreBtn->move( leftButtonPos );
 			}
 			m_restoreBtn->show();
-			m_minimizeBtn->hide();
+		}
+		else
+		{
+			m_minimizeBtn->show();
 		}
 	}
 
