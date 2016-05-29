@@ -32,6 +32,7 @@
 #include <QScrollBar>
 
 #include "embed.h"
+#include <QDebug>
 
 
 
@@ -123,14 +124,19 @@ void SubWindow::elideText( QLabel *label, QString text )
 
 
 
-bool SubWindow::isMaximizedOnMac()
+bool SubWindow::isMaximized()
 {
+#ifdef LMMS_BUILD_APPLE
 	// check if subwindow size is identical to the MdiArea size, accounting for scrollbars
 	int hScrollBarHeight = mdiArea()->horizontalScrollBar()->isVisible() ? mdiArea()->horizontalScrollBar()->size().height() : 0;
 	int vScrollBarWidth = mdiArea()->verticalScrollBar()->isVisible() ? mdiArea()->verticalScrollBar()->size().width() : 0;
 	QSize areaSize( this->mdiArea()->size().width() - vScrollBarWidth, this->mdiArea()->size().height() - hScrollBarHeight );
 
 	return areaSize == this->size();
+#else
+	qDebug() << "hier";
+	return QMdiSubWindow::isMaximized();
+#endif
 }
 
 
@@ -235,27 +241,21 @@ void SubWindow::resizeEvent( QResizeEvent * event )
 	{
 		buttonBarWidth = buttonBarWidth + m_buttonSize.width() + buttonGap;
 		m_maximizeBtn->move( middleButtonPos );
-	// on Mac the isMaximize() function returns always false
-	// so we have to implement our own test
-#ifdef LMMS_BUILD_APPLE
-		if( isMaximizedOnMac() )
+		m_restoreBtn->move( middleButtonPos );
+		if( isMaximized() )
 		{
-			m_restoreBtn->move( middleButtonPos );
 			m_restoreBtn->show();
 		}
 		else
 		{
 			m_maximizeBtn->show();
 		}
-#else
-		m_maximizeBtn->show();
-#endif
 	}
 
 	if( windowFlags() & Qt::WindowMinimizeButtonHint )
 	{
 		buttonBarWidth = buttonBarWidth + m_buttonSize.width() + buttonGap;
-		if( m_maximizeBtn->isHidden() && !isMaximizedOnMac() )
+		if( m_maximizeBtn->isHidden() && !isMaximized() )
 		{
 			m_minimizeBtn->move( middleButtonPos );
 		}

@@ -81,7 +81,7 @@ private:
 	QGraphicsDropShadowEffect * m_shadow;
 
 	static void elideText( QLabel *label, QString text );
-	bool isMaximizedOnMac();
+	bool isMaximized();
 };
 
 #endif
