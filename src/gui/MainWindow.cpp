@@ -175,6 +175,7 @@ MainWindow::MainWindow() :
 	}
 
 	m_workspace->setOption( QMdiArea::DontMaximizeSubWindowOnActivation );
+	m_workspace->setActivationOrder( QMdiArea::StackingOrder );
 	m_workspace->setHorizontalScrollBarPolicy( Qt::ScrollBarAsNeeded );
 	m_workspace->setVerticalScrollBarPolicy( Qt::ScrollBarAsNeeded );
 
@@ -601,6 +602,7 @@ void MainWindow::finalize()
 	gui->songEditor()->parentWidget()->move(5, 5);
 	gui->songEditor()->parentWidget()->show();
 
+
 	// reset window title every time we change the state of a subwindow to show the correct title
 	for( const QMdiSubWindow * subWindow : workspace()->subWindowList() )
 	{
@@ -641,6 +643,9 @@ SubWindow* MainWindow::addWindowedWidget(QWidget *w, Qt::WindowFlags windowFlags
 	win->setAttribute(Qt::WA_DeleteOnClose);
 	win->setWidget(w);
 	m_workspace->addSubWindow(win);
+	SubWindow *corner = new SubWindow( m_workspace->viewport(), Qt::FramelessWindowHint );
+	SubWindowCornerWidget * cw = new SubWindowCornerWidget( win, corner );
+	corner->setWidget( cw );
 	return win;
 }
 

@@ -36,9 +36,12 @@
 
 #include "export.h"
 
+#include <QDebug>
+
 class QMoveEvent;
 class QResizeEvent;
 class QWidget;
+class SubWindowCornerWidget;
 
 
 class EXPORT SubWindow : public QMdiSubWindow
@@ -53,16 +56,21 @@ public:
 	// same as QWidet::normalGeometry, but works properly under X11 (see https://bugreports.qt.io/browse/QTBUG-256)
 	QRect getTrueNormalGeometry() const;
 	QBrush activeColor() const;
+	QBrush inactiveColor() const;
 	QColor textShadowColor() const;
 	QColor borderColor() const;
 	void setActiveColor( const QBrush & b );
 	void setTextShadowColor( const QColor &c );
 	void setBorderColor( const QColor &c );
+signals:
+	void changed();
 
 protected:
 	// hook the QWidget move/resize events to update the tracked geometry
 	virtual void moveEvent( QMoveEvent * event );
 	virtual void resizeEvent( QResizeEvent * event );
+	virtual void hideEvent( QHideEvent * event );
+	virtual void showEvent( QShowEvent * event );
 	virtual void paintEvent( QPaintEvent * pe );
 	
 private:
@@ -73,15 +81,37 @@ private:
 	QPushButton * m_maximizeBtn;
 	QPushButton * m_restoreBtn;
 	QBrush m_activeColor;
+	QBrush m_inactiveColor;
 	QColor m_textShadowColor;
 	QColor m_borderColor;
 	QPoint m_position;
 	QRect m_trackedNormalGeom;
 	QLabel * m_windowTitle;
 	QGraphicsDropShadowEffect * m_shadow;
+	SubWindowCornerWidget * m_corner;
+	QMdiSubWindow * m_cornerSubWindow;
 
 	static void elideText( QLabel *label, QString text );
 	bool isMaximized();
+
+private slots:
+	void onActivate();
+};
+
+class EXPORT SubWindowCornerWidget : public QWidget
+{
+	Q_OBJECT
+public:
+	SubWindowCornerWidget( SubWindow *parent, SubWindow *window );
+
+protected:
+	virtual void paintEvent( QPaintEvent * pe );
+
+private slots:
+	void onParentChange();
+private:
+	SubWindow * m_parent;
+	SubWindow * m_window;
 };
 
 #endif

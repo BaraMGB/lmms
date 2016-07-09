@@ -27,11 +27,14 @@
 #include "SubWindow.h"
 
 #include <QMdiArea>
+#include <QMdiSubWindow>
 #include <QMoveEvent>
 #include <QResizeEvent>
 #include <QScrollBar>
 
 #include "embed.h"
+#include "MainWindow.h"
+#include "GuiApplication.h"
 
 
 
@@ -102,8 +105,9 @@ void SubWindow::paintEvent( QPaintEvent * )
 	QPainter p( this );
 	QRect rect( 0, 0, width(), m_titleBarHeight );
 	bool isActive = SubWindow::mdiArea()->activeSubWindow() == this;
+	m_inactiveColor = p.pen().brush();
 
-	p.fillRect( rect, isActive ? activeColor() : p.pen().brush() );
+	p.fillRect( rect, isActive ? activeColor() : inactiveColor() );
 
 	// window border
 	p.setPen( borderColor() );
@@ -149,6 +153,17 @@ bool SubWindow::isMaximized()
 
 
 
+void SubWindow::onActivate()
+{
+	if( SubWindow::mdiArea()->activeSubWindow() == this )
+	{
+		emit changed();
+	}
+}
+
+
+
+
 QRect SubWindow::getTrueNormalGeometry() const
 {
 	return m_trackedNormalGeom;
@@ -160,6 +175,14 @@ QRect SubWindow::getTrueNormalGeometry() const
 QBrush SubWindow::activeColor() const
 {
 	return m_activeColor;
+}
+
+
+
+
+QBrush SubWindow::inactiveColor() const
+{
+	return m_inactiveColor;
 }
 
 
@@ -214,6 +237,7 @@ void SubWindow::moveEvent( QMoveEvent * event )
 	{
 		m_trackedNormalGeom.moveTopLeft( event->pos() );
 	}
+	emit changed();
 }
 
 
@@ -267,7 +291,6 @@ void SubWindow::resizeEvent( QResizeEvent * event )
 	m_windowTitle->setFixedWidth( widget()->width() - ( menuButtonSpace + buttonBarWidth ) );
 	m_windowTitle->move( menuButtonSpace,
 		( m_titleBarHeight / 2 ) - ( m_windowTitle->sizeHint().height() / 2 ) - 1 );
-
 	// if minimized we can't use widget()->width(). We have to hard code the width,
 	// as the width of all minimized windows is the same.
 	if( isMin )
@@ -289,4 +312,69 @@ void SubWindow::resizeEvent( QResizeEvent * event )
 	{
 		m_trackedNormalGeom.setSize( event->size() );
 	}
+	emit changed();
+}
+
+
+
+
+void SubWindow::hideEvent(QHideEvent *event)
+{
+	emit changed();
+}
+
+
+
+
+void SubWindow::showEvent(QShowEvent *event)
+{
+	emit changed();
+}
+
+
+
+
+SubWindowCornerWidget::SubWindowCornerWidget(SubWindow *parent, SubWindow *window)
+{
+	m_parent = parent;
+	m_window = window;
+
+	m_window->setFixedSize( m_parent->width(), 24 );
+	setFixedSize( parent->width(), 24 );
+	m_window->move( m_parent->pos() );
+	connect( parent, SIGNAL( changed() ), this, SLOT( onParentChange() ) );
+	connect( m_parent->mdiArea(),SIGNAL(subWindowActivated(QMdiSubWindow*)), this,SLOT(onParentChange()) );
+	//connect( parent, SIGNAL( windowStateChanged( Qt::WindowStates,Qt::WindowStates ) ), this, SLOT( onParentChange() ) );
+}
+
+
+
+
+void SubWindowCornerWidget::paintEvent(QPaintEvent *pe)
+{
+	QPainter p( this );
+	QRect rect( 0, 0, width(), 24 );
+	bool isActive = m_window->mdiArea()->activeSubWindow() == m_parent;
+	p.fillRect( rect, isActive ? m_parent->activeColor() : m_parent->inactiveColor() );
+}
+
+
+
+
+void SubWindowCornerWidget::onParentChange()
+{
+	m_window->setVisible( m_parent->isVisible() );
+	if( m_window->mdiArea()->activeSubWindow() == m_window )
+	{
+		m_window->mdiArea()->setActiveSubWindow( m_parent );
+	}
+	if( m_window->mdiArea()->activeSubWindow() == m_parent)
+	{
+		m_window->setFixedSize( m_parent->width(), 24 );
+		setFixedSize( m_parent->width(), 24 );
+		m_window->move( m_parent->x(), m_parent->y() );
+		m_window->raise();
+		m_parent->raise();
+	}
+	update();
 }
