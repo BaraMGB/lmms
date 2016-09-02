@@ -35,6 +35,8 @@
 #if QT_VERSION < 0x050000
 #include <QX11EmbedContainer>
 #include <QX11Info>
+#else
+#include <QWindow>
 #endif
 #else
 #include <QLayout>
@@ -234,36 +236,60 @@ void VstPlugin::showEditor( QWidget * _parent, bool isEffect )
 
 	m_pluginWidget = new QWidget( _parent );
 	m_pluginWidget->setFixedSize( m_pluginGeometry );
-	m_pluginWidget->setWindowTitle( name() );
+
 	if( _parent == NULL )
 	{
-		vstSubWin * sw = new vstSubWin(
-					gui->mainWindow()->workspace() );
+		QDialog * VstDialogWindow = new QDialog( gui->mainWindow() );
 		if( isEffect )
 		{
+#if QT_VERSION < 0x050000
+			vstSubWin * sw = new vstSubWin( gui->mainWindow()->workspace() );
 			sw->setAttribute( Qt::WA_TranslucentBackground );
 			sw->setWindowFlags( Qt::FramelessWindowHint );
 			sw->setWidget( m_pluginWidget );
-#if QT_VERSION < 0x050000
 			QX11EmbedContainer * xe = new QX11EmbedContainer( sw );
 			xe->embedClient( m_pluginWindowID );
 			xe->setFixedSize( m_pluginGeometry );
 			xe->show();
+#else
+			QWindow * window = QWindow::fromWinId(
+							m_pluginWindowID );
+			QWidget * container = QWidget::createWindowContainer(
+								window, VstDialogWindow );
+			container->setFixedSize( m_pluginGeometry );
 #endif
 		} 
 		else
 		{
-			sw->setWindowFlags( Qt::WindowCloseButtonHint );
-			sw->setWidget( m_pluginWidget );
+
 
 #if QT_VERSION < 0x050000
+			vstSubWin * sw = new vstSubWin( gui->mainWindow()->workspace() );
+			sw->setWidget( m_pluginWidget );
 			QX11EmbedContainer * xe = new QX11EmbedContainer( sw );
 			xe->embedClient( m_pluginWindowID );
 			xe->setFixedSize( m_pluginGeometry );
 			xe->move( 4, 24 );
 			xe->show();
+#else
+			QVBoxLayout * mainLayout = new QVBoxLayout( VstDialogWindow );
+			QWindow * window = QWindow::fromWinId(
+						   m_pluginWindowID );
+			QWidget * container = QWidget::createWindowContainer(
+								window, VstDialogWindow );
+			container->setAttribute( Qt::WA_NoMousePropagation );
+			container->setFixedSize( m_pluginGeometry );
+
+			mainLayout->addWidget( m_pluginWidget );
+			VstDialogWindow->setWindowTitle( name() );
+			VstDialogWindow->setFixedSize( m_pluginGeometry );
+			window->show();
+
+			container->show();
+			VstDialogWindow->show();
 #endif
 		}
+		//VstDialogWindow->setWindowFlags( Qt::Window );
 	}
 
 #endif
