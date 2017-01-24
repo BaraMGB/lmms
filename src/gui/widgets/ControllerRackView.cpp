@@ -89,21 +89,14 @@ ControllerRackView::ControllerRackView( ) :
 	// No maximize button
 	Qt::WindowFlags flags = m_subWin->windowFlags();
 	flags &= ~Qt::WindowMaximizeButtonHint;
-<<<<<<< HEAD
-	subWin->setWindowFlags( flags );
-	
-	subWin->setAttribute( Qt::WA_DeleteOnClose, false );
-	subWin->move( 680, 310 );
-	subWin->resize( 350, 200 );
-	subWin->setFixedWidth( 350 );
-=======
+
 	m_subWin->setWindowFlags( flags );
 
 	m_subWin->setAttribute( Qt::WA_DeleteOnClose, false );
 	m_subWin->move( 680, 60 );
 	m_subWin->resize( 400, 249 );
 	m_subWin->setFixedWidth( 249 );
->>>>>>> controllerRack
+
 }
 
 
