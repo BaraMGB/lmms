@@ -42,9 +42,9 @@ PeakControllerEffectControlDialog::PeakControllerEffectControlDialog(
 	setWindowIcon( embed::getIconPixmap( "controller" ) );
 	setAutoFillBackground( true );
 	QPalette pal;
-	pal.setBrush( backgroundRole(), PLUGIN_NAME::getIconPixmap( "artwork" ) );
+	pal.setBrush( backgroundRole(), QBrush(  embed::getIconPixmap( "peakartwork" ) ) );
 	setPalette( pal );
-	setFixedSize( 240, 80 );
+	setFixedSize( 240, 100 );
 
 	m_baseKnob = new Knob( knobBright_26, this );
 	m_baseKnob->setLabel( tr( "BASE" ) );
@@ -96,7 +96,7 @@ PeakControllerEffectControlDialog::PeakControllerEffectControlDialog(
 	ledLayout->addWidget( m_muteLed );
 	ledLayout->addWidget( m_absLed );
 
-	mainLayout->setContentsMargins( 3, 10, 0, 0 );
+	mainLayout->setContentsMargins( 0, 30, 0, 0 );
 	mainLayout->addLayout( knobLayout );
 	mainLayout->addLayout( ledLayout );
 

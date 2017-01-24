@@ -44,6 +44,8 @@
 #include "MainWindow.h"
 #include "TempoSyncKnob.h"
 #include "ToolTip.h"
+#include "Song.h"
+#include "plugins/peak_controller_effect/peak_controller_effect_control_dialog.h"
 
 
 EffectView::EffectView( Effect * _model, QWidget * _parent ) :
@@ -110,18 +112,19 @@ EffectView::EffectView( Effect * _model, QWidget * _parent ) :
 		m_controlView = effect()->controls()->createView();
 		if( m_controlView )
 		{
-			m_subWindow = gui->mainWindow()->addWindowedWidget( m_controlView );
-			m_subWindow->setSizePolicy( QSizePolicy::Fixed, QSizePolicy::Fixed );
-			m_subWindow->setFixedSize( m_subWindow->size() );
-
-			Qt::WindowFlags flags = m_subWindow->windowFlags();
-			flags &= ~Qt::WindowMaximizeButtonHint;
-			m_subWindow->setWindowFlags( flags );
+			if( dynamic_cast<PeakControllerEffectControlDialog*>( m_controlView ) == NULL )
+			{
+				m_subWindow = gui->mainWindow()->addWindowedWidget(	m_controlView,
+							Qt::SubWindow | Qt::CustomizeWindowHint  |
+							Qt::WindowTitleHint | Qt::WindowSystemMenuHint );
+				m_subWindow->setSizePolicy( QSizePolicy::Fixed, QSizePolicy::Fixed );
+				m_subWindow->setFixedSize( m_subWindow->size() );
 
 			connect( m_controlView, SIGNAL( closed() ),
 					this, SLOT( closeEffects() ) );
 
-			m_subWindow->hide();
+				m_subWindow->hide();
+			}
 		}
 	}
 
@@ -292,3 +295,8 @@ void EffectView::modelChanged()
 	m_autoQuit->setModel( &effect()->m_autoQuitModel );
 	m_gate->setModel( &effect()->m_gateModel );
 }
+
+
+
+
+

@@ -32,7 +32,7 @@
 #include "ModelView.h"
 
 class QGroupBox;
-class QLabel;
+class QLineEdit;
 class QPushButton;
 class QMdiSubWindow;
 
@@ -58,28 +58,35 @@ public:
 
 
 public slots:
-	void editControls();
+
 	void deleteController();
 	void displayHelp();
-	void closeControls();
-	void renameController();
+	void collapseController();
+	void renameFinished();
+	void rename();
+
 
 signals:
 	void deleteController( ControllerView * _view );
+	void controllerCollapsed();
 
 
 protected:
+	virtual void paintEvent( QPaintEvent * event );
 	virtual void contextMenuEvent( QContextMenuEvent * _me );
 	virtual void modelChanged();
 	virtual void mouseDoubleClickEvent( QMouseEvent * event );
+	virtual void dragEnterEvent( QDragEnterEvent * dee );
+	virtual void dropEvent( QDropEvent * de );
 
 
 private:
-	QMdiSubWindow * m_subWindow;
 	ControllerDialog * m_controllerDlg;
-	QLabel * m_nameLabel;
+	const int m_titleBarHeight;
 	bool m_show;
-
+	QLineEdit * m_nameLineEdit;
+	QPushButton * m_collapse;
+	Controller * m_modelC;
 } ;
 
 #endif
