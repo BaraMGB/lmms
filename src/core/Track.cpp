@@ -68,6 +68,7 @@
 #include "ProjectJournal.h"
 #include "SampleTrack.h"
 #include "Song.h"
+#include "SongEditor.h"
 #include "StringPairDrag.h"
 #include "templates.h"
 #include "TextFloat.h"
@@ -151,8 +152,8 @@ void TrackContentObject::movePosition( const MidiTime & pos )
 	{
 		m_startPosition = pos;
 		Engine::getSong()->updateLength();
+		emit positionChanged();
 	}
-	emit positionChanged();
 }
 
 
@@ -167,11 +168,8 @@ void TrackContentObject::movePosition( const MidiTime & pos )
  */
 void TrackContentObject::changeLength( const MidiTime & length )
 {
-	if( m_length != length )
-	{
-		m_length = length;
-		Engine::getSong()->updateLength();
-	}
+	m_length = length;
+	Engine::getSong()->updateLength();
 	emit lengthChanged();
 }
 
@@ -280,12 +278,15 @@ TrackContentObjectView::TrackContentObjectView( TrackContentObject * tco,
 
 	connect( m_tco, SIGNAL( lengthChanged() ),
 			this, SLOT( updateLength() ) );
+	connect( gui->songEditor()->m_editor->zoomingModel(), SIGNAL( dataChanged() ), this, SLOT( updateLength() ) );
 	connect( m_tco, SIGNAL( positionChanged() ),
 			this, SLOT( updatePosition() ) );
 	connect( m_tco, SIGNAL( destroyedTCO() ), this, SLOT( close() ) );
 	setModel( m_tco );
 
 	m_trackView->getTrackContentWidget()->addTCOView( this );
+	updateLength();
+	updatePosition();
 }
 
 
@@ -316,6 +317,10 @@ TrackContentObjectView::~TrackContentObjectView()
  */
 void TrackContentObjectView::update()
 {
+	if( fixedTCOs() )
+	{
+		updateLength();
+	}
 	m_needsUpdate = true;
 	selectableObject::update();
 }
@@ -2479,6 +2484,14 @@ void Track::toggleSolo()
 
 
 
+BoolModel *Track::getMutedModel()
+{
+	return &m_mutedModel;
+}
+
+
+
+
 
 
 // ===========================================================================
@@ -2658,9 +2671,9 @@ void TrackView::dropEvent( QDropEvent * de )
 		// value contains our XML-data so simply create a
 		// DataFile which does the rest for us...
 		DataFile dataFile( value.toUtf8() );
-		m_track->lock();
+		Engine::mixer()->requestChangeInModel();
 		m_track->restoreState( dataFile.content().firstChild().toElement() );
-		m_track->unlock();
+		Engine::mixer()->doneChangeInModel();
 		de->accept();
 	}
 }
