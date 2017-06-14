@@ -67,7 +67,7 @@
 #include "SongEditor.h"
 #include "StringPairDrag.h"
 #include "TextFloat.h"
-
+#include <QDebug>
 
 /*! The width of the resize grip in pixels
  */
@@ -664,7 +664,29 @@ DataFile TrackContentObjectView::createTCODataFiles(
 void TrackContentObjectView::mousePressEvent( QMouseEvent * me )
 {
 	setInitialMousePos( me->pos() );
-	if( m_trackView->trackContainerView()->allowRubberband() == true &&
+	if( m_trackView->trackContainerView()->knifeMode() == true &&
+		me->button() == Qt::LeftButton )
+	{
+		SampleTCO * sTco = dynamic_cast<SampleTCO*>( m_tco );
+		if( sTco )
+		{
+			const float ppt = m_trackView->trackContainerView()->pixelsPerTact();
+			const int x = mapToParent( me->pos() ).x();
+			MidiTime t = qMax( 0, (int)
+				m_trackView->trackContainerView()->currentPosition()+
+					static_cast<int>( x * MidiTime::ticksPerTact() /
+										ppt ) );
+			t = t.toNearestTact();
+			sTco->copy();
+			SampleTCO * newTco = new SampleTCO( sTco->getTrack());
+			newTco->paste();
+			sTco->changeLength( t - sTco->startPosition() );
+			newTco->movePosition( t );
+			newTco->changeLength( newTco->length() - sTco->length() );
+			newTco->setStartTimeOffset( ( - sTco->length()) + sTco->startTimeOffset() );
+		}
+	}
+	else if( m_trackView->trackContainerView()->allowRubberband() == true &&
 	    me->button() == Qt::LeftButton )
 	{
 		if( m_trackView->trackContainerView()->rubberBandActive() == true )

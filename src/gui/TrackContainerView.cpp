@@ -307,6 +307,14 @@ bool TrackContainerView::allowRubberband() const
 
 
 
+bool TrackContainerView::knifeMode() const
+{
+	return( false );
+}
+
+
+
+
 void TrackContainerView::setPixelsPerTact( int _ppt )
 {
 	m_ppt = _ppt;

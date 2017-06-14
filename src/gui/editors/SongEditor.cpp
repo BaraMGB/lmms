@@ -302,6 +302,11 @@ void SongEditor::setEditModeDraw()
 	setEditMode(DrawMode);
 }
 
+void SongEditor::setEditModeKnife()
+{
+	setEditMode(KnifeMode);
+}
+
 void SongEditor::setEditModeSelect()
 {
 	setEditMode(SelectMode);
@@ -606,6 +611,14 @@ bool SongEditor::allowRubberband() const
 
 
 
+bool SongEditor::knifeMode() const
+{
+	return m_mode == KnifeMode;
+}
+
+
+
+
 ComboBoxModel *SongEditor::zoomingModel() const
 {
 	return m_zoomingModel;
@@ -668,14 +681,17 @@ SongEditorWindow::SongEditorWindow(Song* song) :
 
 	ActionGroup* editModeGroup = new ActionGroup(this);
 	m_drawModeAction = editModeGroup->addAction(embed::getIconPixmap("edit_draw"), tr("Draw mode"));
+	m_knifeModeAction = editModeGroup->addAction( embed::getIconPixmap( "edit_cut" ), tr("Knife mode (seperates samples)") );
 	m_selectModeAction = editModeGroup->addAction(embed::getIconPixmap("edit_select"), tr("Edit mode (select and move)"));
 
 	m_drawModeAction->setChecked(true);
 
 	connect(m_drawModeAction, SIGNAL(triggered()), m_editor, SLOT(setEditModeDraw()));
+	connect(m_knifeModeAction, SIGNAL(triggered()), m_editor, SLOT(setEditModeKnife()));
 	connect(m_selectModeAction, SIGNAL(triggered()), m_editor, SLOT(setEditModeSelect()));
 
 	editActionsToolBar->addAction( m_drawModeAction );
+	editActionsToolBar->addAction( m_knifeModeAction );
 	editActionsToolBar->addAction( m_selectModeAction );
 
 	DropToolBar *timeLineToolBar = addDropToolBarToTop(tr("Timeline controls"));
