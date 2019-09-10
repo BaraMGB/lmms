@@ -59,8 +59,8 @@
 #include "debug.h"
 #include "StringPairDrag.h"
 #include "ProjectJournal.h"
-
-
+#include <QDebug>
+#include <QMap>
 QPixmap * AutomationEditor::s_toolDraw = NULL;
 QPixmap * AutomationEditor::s_toolErase = NULL;
 QPixmap * AutomationEditor::s_toolSelect = NULL;
@@ -502,149 +502,60 @@ void AutomationEditor::mousePressEvent( QMouseEvent* mouseEvent )
 	if( mouseEvent->y() > TOP_MARGIN )
 	{
 		float level = getLevel( mouseEvent->y() );
-
 		int x = mouseEvent->x();
+		int pos_ticks = (x - VALUES_WIDTH) * MidiTime::ticksPerTact() / m_ppt + m_currentPosition;
 
-		if( x >= VALUES_WIDTH )
+		if( x >= VALUES_WIDTH)
 		{
-			// set or move value
-
-			x -= VALUES_WIDTH;
-
-			// get tick in which the user clicked
-			int pos_ticks = x * MidiTime::ticksPerTact() / m_ppt +
-							m_currentPosition;
-
-			// get time map of current pattern
-			timeMap & time_map = m_pattern->getTimeMap();
-
-			// will be our iterator in the following loop
-			timeMap::iterator it = time_map.begin();
-
-			// loop through whole time-map...
-			while( it != time_map.end() )
-			{
-				// and check whether the user clicked on an
-				// existing value
-				if( pos_ticks >= it.key() &&
-					( it+1==time_map.end() ||
-						pos_ticks <= (it+1).key() ) &&
-		( pos_ticks<= it.key() + MidiTime::ticksPerTact() *4 / m_ppt ) &&
-		( level == it.value() || mouseEvent->button() == Qt::RightButton ) )
-				{
-					break;
-				}
-				++it;
-			}
-
 			if( mouseEvent->button() == Qt::RightButton )
 			{
 				m_mouseDownRight = true;
 			}
 
-			// left button??
 			if( mouseEvent->button() == Qt::LeftButton &&
 							m_editMode == DRAW )
 			{
+
 				m_pattern->addJournalCheckPoint();
-				// Connect the dots
-				if( mouseEvent->modifiers() & Qt::ShiftModifier )
-				{
-					drawLine( m_drawLastTick,
-							m_drawLastLevel,
-							pos_ticks, level );
-				}
-				m_drawLastTick = pos_ticks;
-				m_drawLastLevel = level;
-
-				// did it reach end of map because
-				// there's no value??
-				if( it == time_map.end() )
-				{
-					// then set new value
-					MidiTime value_pos( pos_ticks );
-
-					MidiTime new_time =
-						m_pattern->setDragValue( value_pos,
-									level, true,
-							mouseEvent->modifiers() &
-								Qt::ControlModifier );
-
-					// reset it so that it can be used for
-					// ops (move, resize) after this
-					// code-block
-					it = time_map.find( new_time );
-				}
-
-				// move it
-				m_action = MOVE_VALUE;
-				int aligned_x = (int)( (float)( (
-						it.key() -
-						m_currentPosition ) *
-						m_ppt ) / MidiTime::ticksPerTact() );
-				m_moveXOffset = x - aligned_x - 1;
-				// set move-cursor
-				QCursor c( Qt::SizeAllCursor );
-				QApplication::setOverrideCursor( c );
-
+				m_pattern->putValue(pos_ticks, level);
 				Engine::getSong()->setModified();
+
 			}
 			else if( ( mouseEvent->button() == Qt::RightButton &&
 							m_editMode == DRAW ) ||
-					m_editMode == ERASE )
+							m_editMode == ERASE )
 			{
-				m_drawLastTick = pos_ticks;
 				m_pattern->addJournalCheckPoint();
-				// erase single value
-				if( it != time_map.end() )
-				{
-					m_pattern->removeValue( it.key() );
-					Engine::getSong()->setModified();
-				}
-				m_action = NONE;
+				Engine::getSong()->setModified();
 			}
 			else if( mouseEvent->button() == Qt::LeftButton &&
 							m_editMode == SELECT )
 			{
-				// select an area of values
+				m_pattern->addJournalCheckPoint();
+				Engine::getSong()->setModified();
 
-				m_selectStartTick = pos_ticks;
-				m_selectedTick = 0;
-				m_selectStartLevel = level;
-				m_selectedLevels = 1;
-				m_action = SELECT_VALUES;
 			}
 			else if( mouseEvent->button() == Qt::RightButton &&
 							m_editMode == SELECT )
 			{
-				// when clicking right in select-move, we
-				// switch to move-mode
-				//m_moveButton->setChecked( true );
+				m_pattern->addJournalCheckPoint();
+				Engine::getSong()->setModified();
 			}
 			else if( mouseEvent->button() == Qt::LeftButton &&
 							m_editMode == MOVE )
 			{
 				m_pattern->addJournalCheckPoint();
-				// move selection (including selected values)
-
-				// save position where move-process began
-				m_moveStartTick = pos_ticks;
-				m_moveStartLevel = level;
-
-				m_action = MOVE_SELECTION;
-
 				Engine::getSong()->setModified();
 			}
 			else if( mouseEvent->button() == Qt::RightButton &&
 							m_editMode == MOVE )
 			{
-				// when clicking right in select-move, we
-				// switch to draw-mode
-				//m_drawButton->setChecked( true );
+				m_pattern->addJournalCheckPoint();
+				Engine::getSong()->setModified();
 			}
 
-			update();
 		}
+		update();
 	}
 }
 
@@ -670,7 +581,7 @@ void AutomationEditor::mouseReleaseEvent(QMouseEvent * mouseEvent )
 	{
 		if( m_action == MOVE_VALUE )
 		{
-			m_pattern->applyDragValue();
+			//m_pattern->applyDragValue();
 		}
 		QApplication::restoreOverrideCursor();
 	}
@@ -727,16 +638,13 @@ void AutomationEditor::mouseMoveEvent(QMouseEvent * mouseEvent )
 		return;
 	}
 
+
 	if( mouseEvent->y() > TOP_MARGIN )
 	{
 		float level = getLevel( mouseEvent->y() );
 		int x = mouseEvent->x();
 
 		x -= VALUES_WIDTH;
-		if( m_action == MOVE_VALUE )
-		{
-			x -= m_moveXOffset;
-		}
 
 		int pos_ticks = x * MidiTime::ticksPerTact() / m_ppt +
 							m_currentPosition;
@@ -744,25 +652,6 @@ void AutomationEditor::mouseMoveEvent(QMouseEvent * mouseEvent )
 		{
 			if( m_action == MOVE_VALUE )
 			{
-				// moving value
-				if( pos_ticks < 0 )
-				{
-					pos_ticks = 0;
-				}
-
-				drawLine( m_drawLastTick, m_drawLastLevel,
-							pos_ticks, level );
-
-				m_drawLastTick = pos_ticks;
-				m_drawLastLevel = level;
-
-				// we moved the value so the value has to be
-				// moved properly according to new starting-
-				// time in the time map of pattern
-				m_pattern->setDragValue( MidiTime( pos_ticks ),
-								level, true,
-							mouseEvent->modifiers() &
-								Qt::ControlModifier );
 			}
 
 			Engine::getSong()->setModified();
@@ -774,14 +663,9 @@ void AutomationEditor::mouseMoveEvent(QMouseEvent * mouseEvent )
 						m_editMode == ERASE ) )
 		{
 			// removing automation point
-			if( pos_ticks < 0 )
-			{
-				pos_ticks = 0;
-			}
-			removePoints( m_drawLastTick, pos_ticks );
 			Engine::getSong()->setModified();
 		}
-		else if( mouseEvent->buttons() & Qt::NoButton && m_editMode == DRAW )
+		else if( mouseEvent->buttons() == Qt::NoButton && m_editMode == DRAW )
 		{
 			// set move- or resize-cursor
 
@@ -790,15 +674,14 @@ void AutomationEditor::mouseMoveEvent(QMouseEvent * mouseEvent )
 
 			// will be our iterator in the following loop
 			timeMap::iterator it = time_map.begin();
+			int scope = 3;
 			// loop through whole time map...
-			for( ; it != time_map.end(); ++it )
+			for (; it != time_map.end(); ++it)
 			{
-				// and check whether the cursor is over an
-				// existing value
-				if( pos_ticks >= it.key() &&
-					( it+1==time_map.end() ||
-						pos_ticks <= (it+1).key() ) &&
-							level <= it.value() )
+				if (  pos_ticks >= it.key() - scope
+				   && pos_ticks <= it.key() + scope
+				   && mouseEvent->y() >= yCoordOfLevel(it.value()) - scope
+				   && mouseEvent->y() <= yCoordOfLevel(it.value()) + scope)
 				{
 					break;
 				}
@@ -842,159 +725,12 @@ void AutomationEditor::mouseMoveEvent(QMouseEvent * mouseEvent )
 						m_editMode == SELECT &&
 						m_action == SELECT_VALUES )
 		{
-
-			// change size of selection
-
-			if( x < 0 && m_currentPosition > 0 )
-			{
-				x = 0;
-				QCursor::setPos( mapToGlobal( QPoint(
-						VALUES_WIDTH, mouseEvent->y() ) ) );
-				if( m_currentPosition >= 4 )
-				{
-					m_leftRightScroll->setValue(
-							m_currentPosition - 4 );
-				}
-				else
-				{
-					m_leftRightScroll->setValue( 0 );
-				}
-			}
-			else if( x > width() - VALUES_WIDTH )
-			{
-				x = width() - VALUES_WIDTH;
-				QCursor::setPos( mapToGlobal( QPoint( width(),
-								mouseEvent->y() ) ) );
-				m_leftRightScroll->setValue( m_currentPosition +
-									4 );
-			}
-
-			// get tick in which the cursor is posated
-			int pos_ticks = x * MidiTime::ticksPerTact() / m_ppt +
-							m_currentPosition;
-
-			m_selectedTick = pos_ticks - m_selectStartTick;
-			if( (int) m_selectStartTick + m_selectedTick < 0 )
-			{
-				m_selectedTick = -m_selectStartTick;
-			}
-			m_selectedLevels = level - m_selectStartLevel;
-			if( level <= m_selectStartLevel )
-			{
-				--m_selectedLevels;
-			}
 		}
 		else if( mouseEvent->buttons() & Qt::LeftButton &&
 					m_editMode == MOVE &&
 					m_action == MOVE_SELECTION )
 		{
-			// move selection + selected values
 
-			// do horizontal move-stuff
-			int pos_ticks = x * MidiTime::ticksPerTact() / m_ppt +
-							m_currentPosition;
-			int ticks_diff = pos_ticks -
-							m_moveStartTick;
-			if( m_selectedTick > 0 )
-			{
-				if( (int) m_selectStartTick +
-							ticks_diff < 0 )
-				{
-					ticks_diff = -m_selectStartTick;
-				}
-			}
-			else
-			{
-				if( (int) m_selectStartTick +
-					m_selectedTick + ticks_diff <
-									0 )
-				{
-					ticks_diff = -(
-							m_selectStartTick +
-							m_selectedTick );
-				}
-			}
-			m_selectStartTick += ticks_diff;
-
-			int tact_diff = ticks_diff / MidiTime::ticksPerTact();
-			ticks_diff = ticks_diff % MidiTime::ticksPerTact();
-
-
-			// do vertical move-stuff
-			float level_diff = level - m_moveStartLevel;
-
-			if( m_selectedLevels > 0 )
-			{
-				if( m_selectStartLevel + level_diff
-								< m_minLevel )
-				{
-					level_diff = m_minLevel -
-							m_selectStartLevel;
-				}
-				else if( m_selectStartLevel + m_selectedLevels +
-						level_diff > m_maxLevel )
-				{
-					level_diff = m_maxLevel -
-							m_selectStartLevel -
-							m_selectedLevels;
-				}
-			}
-			else
-			{
-				if( m_selectStartLevel + m_selectedLevels +
-						level_diff < m_minLevel )
-				{
-					level_diff = m_minLevel -
-							m_selectStartLevel -
-							m_selectedLevels;
-				}
-				else if( m_selectStartLevel + level_diff >
-								m_maxLevel )
-				{
-					level_diff = m_maxLevel -
-							m_selectStartLevel;
-				}
-			}
-			m_selectStartLevel += level_diff;
-
-
-			timeMap new_selValuesForMove;
-			for( timeMap::iterator it = m_selValuesForMove.begin();
-					it != m_selValuesForMove.end(); ++it )
-			{
-				MidiTime new_value_pos;
-				if( it.key() )
-				{
-					int value_tact =
-						( it.key() /
-							MidiTime::ticksPerTact() )
-								+ tact_diff;
-					int value_ticks =
-						( it.key() %
-							MidiTime::ticksPerTact() )
-								+ ticks_diff;
-					// ensure value_ticks range
-					if( value_ticks / MidiTime::ticksPerTact() )
-					{
-						value_tact += value_ticks
-							/ MidiTime::ticksPerTact();
-						value_ticks %=
-							MidiTime::ticksPerTact();
-					}
-					m_pattern->removeValue( it.key() );
-					new_value_pos = MidiTime( value_tact,
-							value_ticks );
-				}
-				new_selValuesForMove[
-					m_pattern->putValue( new_value_pos,
-						it.value () + level_diff,
-									false )]
-						= it.value() + level_diff;
-			}
-			m_selValuesForMove = new_selValuesForMove;
-
-			m_moveStartTick = pos_ticks;
-			m_moveStartLevel = level;
 		}
 	}
 	else
@@ -1003,79 +739,16 @@ void AutomationEditor::mouseMoveEvent(QMouseEvent * mouseEvent )
 					m_editMode == SELECT &&
 					m_action == SELECT_VALUES )
 		{
-
-			int x = mouseEvent->x() - VALUES_WIDTH;
-			if( x < 0 && m_currentPosition > 0 )
-			{
-				x = 0;
-				QCursor::setPos( mapToGlobal( QPoint( VALUES_WIDTH,
-								mouseEvent->y() ) ) );
-				if( m_currentPosition >= 4 )
-				{
-					m_leftRightScroll->setValue(
-							m_currentPosition - 4 );
-				}
-				else
-				{
-					m_leftRightScroll->setValue( 0 );
-				}
-			}
-			else if( x > width() - VALUES_WIDTH )
-			{
-				x = width() - VALUES_WIDTH;
-				QCursor::setPos( mapToGlobal( QPoint( width(),
-							mouseEvent->y() ) ) );
-				m_leftRightScroll->setValue( m_currentPosition +
-									4 );
-			}
-
-			// get tick in which the cursor is posated
-			int pos_ticks = x * MidiTime::ticksPerTact() / m_ppt +
-							m_currentPosition;
-
-			m_selectedTick = pos_ticks -
-							m_selectStartTick;
-			if( (int) m_selectStartTick + m_selectedTick <
-									0 )
-			{
-				m_selectedTick = -m_selectStartTick;
-			}
-
-			float level = getLevel( mouseEvent->y() );
-
-			if( level <= m_bottomLevel )
-			{
-				QCursor::setPos( mapToGlobal( QPoint( mouseEvent->x(),
-							height() -
-							SCROLLBAR_SIZE ) ) );
-				m_topBottomScroll->setValue(
-					m_topBottomScroll->value() + 1 );
-				level = m_bottomLevel;
-			}
-			else if( level >= m_topLevel )
-			{
-				QCursor::setPos( mapToGlobal( QPoint( mouseEvent->x(),
-							TOP_MARGIN ) ) );
-				m_topBottomScroll->setValue(
-					m_topBottomScroll->value() - 1 );
-				level = m_topLevel;
-			}
-			m_selectedLevels = level - m_selectStartLevel;
-			if( level <= m_selectStartLevel )
-			{
-				--m_selectedLevels;
-			}
+			QApplication::restoreOverrideCursor();
 		}
-		QApplication::restoreOverrideCursor();
 	}
-
 	update();
 }
 
 
 
 
-inline void AutomationEditor::drawCross( QPainter & p )
+void AutomationEditor::drawCross( QPainter & p )
 {
 	QPoint mouse_pos = mapFromGlobal( QCursor::pos() );
 	int grid_bottom = height() - SCROLLBAR_SIZE - 1;
@@ -1110,10 +783,10 @@ inline void AutomationEditor::drawCross( QPainter & p )
 
 
 
-inline void AutomationEditor::drawAutomationPoint( QPainter & p, timeMap::iterator it )
+inline void AutomationEditor::drawAutomationPoint(QPainter & p, MidiTime time, float value)
 {
-	int x = xCoordOfTick( it.key() );
-	int y = yCoordOfLevel( it.value() );
+	int x = xCoordOfTick(time);
+	int y = static_cast<int>(yCoordOfLevel(value));
 	const int outerRadius = qBound( 3, ( m_ppt * AutomationPattern::quantization() ) / 576, 5 ); // man, getting this calculation right took forever
 	p.setPen( QPen( vertexColor().lighter( 200 ) ) );
 	p.setBrush( QBrush( vertexColor() ) );
@@ -1324,115 +997,52 @@ void AutomationEditor::paintEvent(QPaintEvent * pe )
 
 
 
-	// following code draws all visible values
-
-	// setup selection-vars
-	int sel_pos_start = m_selectStartTick;
-	int sel_pos_end = m_selectStartTick + m_selectedTick;
-	if( sel_pos_start > sel_pos_end )
-	{
-		qSwap<int>( sel_pos_start, sel_pos_end );
-	}
-
-	float selLevel_start = m_selectStartLevel;
-	float selLevel_end = selLevel_start + m_selectedLevels;
-	if( selLevel_start > selLevel_end )
-	{
-		qSwap<float>( selLevel_start, selLevel_end );
-	}
-
 	if( validPattern() )
 	{
-		//NEEDS Change in CSS
-		//int len_ticks = 4;
+		p.setRenderHints( QPainter::Antialiasing, true );
+		QPainterPath path;
 		timeMap & time_map = m_pattern->getTimeMap();
-
-		//Don't bother doing/rendering anything if there is no automation points
-		if( time_map.size() > 0 )
+		if ( time_map.size() > 0)
 		{
+			path.moveTo(QPointF(0.0f, yCoordOfLevel(time_map.begin().value())));
 			timeMap::iterator it = time_map.begin();
-			while( it+1 != time_map.end() )
+			int lastKey = it.key();
+			int offset = 0;
+			while (it != time_map.end())
 			{
-				// skip this section if it occurs completely before the
-				// visible area
-				int next_x = xCoordOfTick( (it+1).key() );
-				if( next_x < 0 )
+				drawAutomationPoint(p, it.key(),it.value());
+				if (it.key() == lastKey && it != time_map.begin())
 				{
-					++it;
-					continue;
-				}
+					offset++;
 
-				int x = xCoordOfTick( it.key() );
-				if( x > width() )
-				{
-					break;
-				}
-
-				//NEEDS Change in CSS
-				/*bool is_selected = false;
-				// if we're in move-mode, we may only draw
-				// values in selected area, that have originally
-				// been selected and not values that are now in
-				// selection because the user moved it...
-				if( m_editMode == MOVE )
-				{
-					if( m_selValuesForMove.contains( it.key() ) )
-					{
-						is_selected = true;
-					}
-				}
-				else if( it.value() >= selLevel_start &&
-					it.value() <= selLevel_end &&
-					it.key() >= sel_pos_start &&
-					it.key() + len_ticks <= sel_pos_end )
-				{
-					is_selected = true;
-				}*/
-
-				float *values = m_pattern->valuesAfter( it.key() );
-
-				float nextValue;
-				if( m_pattern->progressionType() == AutomationPattern::DiscreteProgression )
-				{
-					nextValue = it.value();
 				}
 				else
 				{
-					nextValue = ( it + 1 ).value();
+					offset = 0;
 				}
-
-				p.setRenderHints( QPainter::Antialiasing, true );
-				QPainterPath path;
-				path.moveTo( QPointF( xCoordOfTick( it.key() ), yCoordOfLevel( 0 ) ) );
-				for( int i = 0; i < ( it + 1 ).key() - it.key(); i++ )
-				{	path.lineTo( QPointF( xCoordOfTick( it.key() + i ), yCoordOfLevel( values[i] ) ) );
-					//NEEDS Change in CSS
-					//drawLevelTick( p, it.key() + i, values[i], is_selected );
-
+				lastKey = it.key();
+				float *values = m_pattern->valuesAfter(it.key(), offset);
+				if (values)
+				{
+					for( int i = 0; i < ( it + 1 ).key() - it.key(); i++ )
+					{
+						path.lineTo(QPointF(xCoordOfTick(it.key() + i), yCoordOfLevel(values[i])));
+					}
 				}
-				path.lineTo( QPointF( xCoordOfTick( ( it + 1 ).key() ), yCoordOfLevel( nextValue ) ) );
-				path.lineTo( QPointF( xCoordOfTick( ( it + 1 ).key() ), yCoordOfLevel( 0 ) ) );
-				path.lineTo( QPointF( xCoordOfTick( it.key() ), yCoordOfLevel( 0 ) ) );
-				p.fillPath( path, graphColor() );
-				p.setRenderHints( QPainter::Antialiasing, false );
+				else
+				{
+					path.lineTo(QPointF(xCoordOfTick(it.key()), yCoordOfLevel(it.value())));
+				}
+				it++;
 				delete [] values;
-
-				// Draw circle
-				drawAutomationPoint(p, it);
-
-				++it;
 			}
+			path.lineTo(QPointF( width(), yCoordOfLevel( time_map.last())));
 
-			for( int i = it.key(), x = xCoordOfTick( i ); x <= width();
-							i++, x = xCoordOfTick( i ) )
-			{
-				// TODO: Find out if the section after the last control
-				// point is able to be selected and if so set this
-				// boolean correctly
-				drawLevelTick( p, i, it.value()); ////NEEDS Change in CSS:, false );
-			}
-			// Draw circle(the last one)
-			drawAutomationPoint(p, it);
+
+			path.lineTo(QPointF(width(),height()));
+			path.lineTo(QPointF(0, height()));
+			p.fillPath( path, graphColor() );
+			p.setRenderHints( QPainter::Antialiasing, false );
 		}
 	}
 	else
@@ -1449,42 +1059,9 @@ void AutomationEditor::paintEvent(QPaintEvent * pe )
 					"the context menu of a control!" ) );
 	}
 
-	// now draw selection-frame
-	int x = ( sel_pos_start - m_currentPosition ) * m_ppt /
-							MidiTime::ticksPerTact();
-	int w = ( sel_pos_end - sel_pos_start ) * m_ppt / MidiTime::ticksPerTact();
-	int y, h;
-	if( m_y_auto )
-	{
-		y = (int)( grid_bottom - ( ( grid_bottom - TOP_MARGIN )
-				* ( selLevel_start - m_minLevel )
-				/ (float)( m_maxLevel - m_minLevel ) ) );
-		h = (int)( grid_bottom - ( ( grid_bottom - TOP_MARGIN )
-				* ( selLevel_end - m_minLevel )
-				/ (float)( m_maxLevel - m_minLevel ) ) - y );
-	}
-	else
-	{
-		y = (int)( grid_bottom - ( selLevel_start - m_bottomLevel )
-								* m_y_delta );
-		h = (int)( ( selLevel_start - selLevel_end ) * m_y_delta );
-	}
-	p.setPen( QColor( 0, 64, 192 ) );
-	p.drawRect( x + VALUES_WIDTH, y, w, h );
-
-	// TODO: Get this out of paint event
-	int l = validPattern() ? (int) m_pattern->length() : 0;
-
-	// reset scroll-range
-	if( m_leftRightScroll->maximum() != l )
-	{
-		m_leftRightScroll->setRange( 0, l );
-		m_leftRightScroll->setPageStep( l );
-	}
 
 	if( validPattern() && GuiApplication::instance()->automationEditor()->hasFocus() )
 	{
-
 		drawCross( p );
 	}
 
@@ -1547,53 +1124,7 @@ float AutomationEditor::yCoordOfLevel(float level )
 
 
 				//NEEDS Change in CSS
-void AutomationEditor::drawLevelTick(QPainter & p, int tick, float value)
-				//			bool is_selected )
-{
-	int grid_bottom = height() - SCROLLBAR_SIZE - 1;
-	const int x = xCoordOfTick( tick );
-	int rect_width = xCoordOfTick( tick+1 ) - x;
 
-	// is the level in visible area?
-	if( ( value >= m_bottomLevel && value <= m_topLevel )
-			|| ( value > m_topLevel && m_topLevel >= 0 )
-			|| ( value < m_bottomLevel && m_bottomLevel <= 0 ) )
-	{
-		int y_start = yCoordOfLevel( value );
-		int rect_height;
-
-		if( m_y_auto )
-		{
-			int y_end = (int)( grid_bottom
-						+ ( grid_bottom - TOP_MARGIN )
-						* m_minLevel
-						/ ( m_maxLevel - m_minLevel ) );
-
-			rect_height = y_end - y_start;
-		}
-		else
-		{
-			rect_height = (int)( value * m_y_delta );
-		}
-
-		//NEEDS Change in CSS
-		/*QBrush currentColor = is_selected
-			? QBrush( QColor( 0x00, 0x40, 0xC0 ) )
-			: graphColor();
-
-		*/
-
-		QBrush currentColor = graphColor();
-
-		p.fillRect( x, y_start, rect_width, rect_height, currentColor );
-	}
-
-	else
-	{
-		printf("not in range\n");
-	}
-
-}
 
 
 
@@ -1712,7 +1243,7 @@ void AutomationEditor::wheelEvent(QWheelEvent * we )
 
 
 
-
+//calculate level from pixel
 float AutomationEditor::getLevel(int y )
 {
 	int level_line_y = height() - SCROLLBAR_SIZE - 1;

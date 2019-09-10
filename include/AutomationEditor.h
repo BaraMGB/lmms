@@ -126,7 +126,7 @@ protected:
 	float getLevel( int y );
 	int xCoordOfTick( int tick );
 	float yCoordOfLevel( float level );
-	inline void drawLevelTick( QPainter & p, int tick, float value);// bool is_selected ); //NEEDS Change in CSS
+
 	void removeSelection();
 	void selectAll();
 	void getSelectedValues(timeMap & selected_values );
@@ -246,7 +246,7 @@ private:
 	bool m_scrollBack;
 
 	void drawCross(QPainter & p );
-	void drawAutomationPoint( QPainter & p, timeMap::iterator it );
+	void drawAutomationPoint(QPainter & p, MidiTime time , float value);
 	bool inBBEditor();
 
 	QColor m_barLineColor;

@@ -135,7 +135,7 @@ public:
 	}
 
 	float valueAt( const MidiTime & _time ) const;
-	float *valuesAfter( const MidiTime & _time ) const;
+	float *valuesAfter(const MidiTime & _time , int offset = 0) const;
 
 	const QString name() const;
 

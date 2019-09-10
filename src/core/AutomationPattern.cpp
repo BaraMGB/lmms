@@ -35,7 +35,7 @@
 #include "Song.h"
 
 #include <cmath>
-
+#include <QDebug>
 int AutomationPattern::s_quantization = 1;
 const float AutomationPattern::DEFAULT_MIN_VALUE = 0;
 const float AutomationPattern::DEFAULT_MAX_VALUE = 1;
@@ -205,18 +205,40 @@ MidiTime AutomationPattern::putValue( const MidiTime & time,
 				Note::quantized( time, quantization() ) :
 				time;
 
-	m_timeMap[ newTime ] = value;
+	if (m_timeMap.contains(newTime))
+	{
+		//adds the new point before the others
+		if (time > newTime)
+		{
+			QList<float> vList = m_timeMap.values(newTime);
+			m_timeMap.remove(newTime);
+			m_timeMap.insert(newTime, value);
+			for (int i = 0; i < vList.size(); ++i)
+			{
+				m_timeMap.insertMulti(newTime, vList.at(vList.size() - i - 1));
+			}
+		}
+		//append the new point
+		else
+		{
+			m_timeMap.insertMulti(newTime, value);
+		}
+	}
+	else
+	{
+		m_timeMap[ newTime ] = value;
+	}
 	timeMap::const_iterator it = m_timeMap.find( newTime );
 
 	// Remove control points that are covered by the new points
 	// quantization value. Control Key to override
-	if( ! ignoreSurroundingPoints )
-	{
-		for( int i = newTime + 1; i < newTime + quantization(); ++i )
-		{
-			AutomationPattern::removeValue( i );
-		}
-	}
+//	if( ! ignoreSurroundingPoints )
+//	{
+//		for( int i = newTime + 1; i < newTime + quantization(); ++i )
+//		{
+//			AutomationPattern::removeValue( i );
+//		}
+//	}
 	if( it != m_timeMap.begin() )
 	{
 		--it;
@@ -367,7 +389,7 @@ float AutomationPattern::valueAt( timeMap::const_iterator v, int offset ) const
 	else if( m_progressionType == LinearProgression )
 	{
 		float slope = ((v+1).value() - v.value()) /
-							((v+1).key() - v.key());
+							((v+1).key() - v.key()) ;
 		return v.value() + offset * slope;
 	}
 	else /* CubicHermiteProgression */
@@ -395,12 +417,13 @@ float AutomationPattern::valueAt( timeMap::const_iterator v, int offset ) const
 
 
 
-float *AutomationPattern::valuesAfter( const MidiTime & _time ) const
+float *AutomationPattern::valuesAfter( const MidiTime & _time, int offset ) const
 {
-	timeMap::ConstIterator v = m_timeMap.lowerBound( _time );
-	if( v == m_timeMap.end() || (v+1) == m_timeMap.end() )
+	timeMap::ConstIterator v = m_timeMap.lowerBound(_time);
+	v = v + offset;
+	if( v == m_timeMap.end() || (v+1) == m_timeMap.end() || v.key() == (v + 1).key())
 	{
-		return NULL;
+		return nullptr;
 	}
 
 	int numValues = (v+1).key() - v.key();
